@@ -12,6 +12,7 @@
   "dependencies": {
     "@pipecat-ai/client-js": "^1.13.1",
     "@pipecat-ai/small-webrtc-transport": "^1.10.8",
+    "@pipecat-ai/websocket-transport": "^1.7.2",
     "@tailwindcss/vite": "^4.3.3",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

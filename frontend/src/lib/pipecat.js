@@ -1,11 +1,31 @@
 import { PipecatClient } from "@pipecat-ai/client-js";
 import { SmallWebRTCTransport } from "@pipecat-ai/small-webrtc-transport";
+import {
+  ProtobufFrameSerializer,
+  WebSocketTransport,
+} from "@pipecat-ai/websocket-transport";
+
+export function isLocalPipecat(baseUrl) {
+  return /^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/.test(baseUrl);
+}
+
+export function publicWebSocketUrl(baseUrl) {
+  return `${baseUrl.replace(/\/$/, "").replace(/^http/, "ws")}/ws-client`;
+}
 
 export function createPipecatClient({
   onUserTranscript,
   onBotTranscript,
+  onError,
+  useWebSocket,
 }) {
-  const transport = new SmallWebRTCTransport();
+  const transport = useWebSocket
+    ? new WebSocketTransport({
+        serializer: new ProtobufFrameSerializer(),
+        recorderSampleRate: 16000,
+        playerSampleRate: 24000,
+      })
+    : new SmallWebRTCTransport();
 
   const client = new PipecatClient({
     transport,
@@ -38,9 +58,7 @@ export function createPipecatClient({
       },
 
       onTrackStarted: (track, participant) => {
-        console.log("Track started:", track?.kind, participant);
-
-        if (participant?.local || track.kind !== "audio") {
+        if (useWebSocket || participant?.local || track.kind !== "audio") {
           return;
         }
 
@@ -57,21 +75,14 @@ export function createPipecatClient({
         audio.autoplay = true;
         audio.playsInline = true;
 
-        audio.play()
-          .then(() => {
-            console.log("AI audio playback started");
-          })
-          .catch((error) => {
-            console.error("Audio playback failed:", error);
-          });
-      },
-
-      onTrackStopped: (track) => {
-        console.log("Track stopped:", track?.kind);
+        audio.play().catch((error) => {
+          console.error("Audio playback failed:", error);
+        });
       },
 
       onError: (error) => {
         console.error("Pipecat error:", error);
+        onError?.(error);
       },
     },
   });

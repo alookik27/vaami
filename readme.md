@@ -383,7 +383,7 @@ PIPECAT_ICE_SERVERS=stun:stun.l.google.com:19302,{"urls":"turn:YOUR_TURN_HOST:34
 PIPECAT_ALLOWED_ORIGINS=https://your-frontend-origin
 ```
 
-`PIPECAT_ICE_SERVERS` must include TURN for phones and strict networks. The frontend calls `POST /start` on this HTTPS origin. `/start` returns the ICE servers to the browser.
+`PIPECAT_ICE_SERVERS` is only needed for the WebRTC path. The public Render site uses the WebSocket endpoint `/ws-client`, which Render can proxy. A phone or another network still needs TURN if you connect with WebRTC instead.
 
 Set that origin when you build the frontend. Vite bakes it in at build time:
 

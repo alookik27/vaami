@@ -13,19 +13,34 @@ from pipecat.processors.aggregators.llm_response_universal import (
 from pipecat.runner.run import main
 from pipecat.runner.types import RunnerArguments
 from pipecat.runner.utils import create_transport
+from pipecat.serializers.protobuf import ProtobufFrameSerializer
 from pipecat.services.deepgram.stt import DeepgramSTTService
 from pipecat.services.elevenlabs.tts import ElevenLabsTTSService
 from pipecat.services.groq.llm import GroqLLMService
 from pipecat.transports.base_transport import BaseTransport, TransportParams
+from pipecat.transports.websocket.fastapi import FastAPIWebsocketParams
 from pipecat.workers.runner import WorkerRunner
 
 load_dotenv(override=True)
+
+REQUIRED_ENV = (
+    "DEEPGRAM_API_KEY",
+    "GROQ_API_KEY",
+    "ELEVENLABS_API_KEY",
+    "ELEVENLABS_VOICE_ID",
+)
 
 transport_params = {
     "webrtc": lambda: TransportParams(
         audio_in_enabled=True,
         audio_out_enabled=True,
         vad_analyzer=SileroVADAnalyzer(),
+    ),
+    "websocket": lambda: FastAPIWebsocketParams(
+        audio_in_enabled=True,
+        audio_out_enabled=True,
+        add_wav_header=False,
+        serializer=ProtobufFrameSerializer(),
     ),
 }
 
@@ -117,6 +132,14 @@ async def run_bot(
 
 
 async def bot(runner_args: RunnerArguments):
+    missing = [name for name in REQUIRED_ENV if not os.environ.get(name)]
+    if missing:
+        print("Missing voice provider settings: " + ", ".join(missing))
+        websocket = getattr(runner_args, "websocket", None)
+        if websocket is not None:
+            await websocket.close(code=1011)
+        return
+
     transport = await create_transport(
         runner_args,
         transport_params,

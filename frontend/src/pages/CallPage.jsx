@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { createPipecatClient } from "../lib/pipecat";
+import { createPipecatClient, isLocalPipecat, publicWebSocketUrl } from "../lib/pipecat";
 import { saveCall } from "../lib/api.js";
 const PLACEHOLDER_PIPECAT_URL = "https://your-pipecat-server.com";
 
@@ -77,19 +77,49 @@ function CallPage() {
       endTimeRef.current = null;
       setDuration(0);
       startTimeRef.current = new Date();
+      const useWebSocket = !isLocalPipecat(baseUrl);
       const client = createPipecatClient({
+        useWebSocket,
         onUserTranscript: (text) => {
           addTranscript("user", text);
         },
         onBotTranscript: (text) => {
           addTranscript("assistant", text);
         },
+        onError: (callError) => {
+          setError(errorMessage(callError, "The voice connection failed."));
+        },
       });
       pipecatRef.current = client;
       await client.initDevices();
-      await client.startBotAndConnect({
-        endpoint: `${baseUrl}/start`,
+      let connectFailure;
+      const connectPromise = (
+        useWebSocket
+          ? client.connect({ wsUrl: publicWebSocketUrl(baseUrl) })
+          : client.startBotAndConnect({ endpoint: `${baseUrl}/start` })
+      ).catch((connectError) => {
+        connectFailure = connectError;
       });
+      let timeoutId;
+      try {
+        await Promise.race([
+          connectPromise,
+          new Promise((_, reject) => {
+            timeoutId = setTimeout(() => {
+              reject(
+                new Error(
+                  "The voice server did not finish connecting. On Render this needs the provider API keys.",
+                ),
+              );
+            }, 25000);
+          }),
+        ]);
+      } finally {
+        clearTimeout(timeoutId);
+      }
+      if (connectFailure) {
+        throw connectFailure;
+      }
       setPipecat(client);
       setStatus("connected");
       timerRef.current = setInterval(() => {
