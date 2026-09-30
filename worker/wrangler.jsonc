@@ -1,0 +1,18 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "worker",
+	"main": "src/index.js",
+	"compatibility_date": "2026-09-26",
+	"observability": {
+		"enabled": true
+	},
+	"upload_source_maps": true,
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "vaami-db",
+			"database_id": "23e4ecd9-bd62-4d39-ac41-bad0e786090c",
+			"migrations_dir": "migrations"
+		}
+	]
+}

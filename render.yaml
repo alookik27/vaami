@@ -1,0 +1,38 @@
+services:
+  - type: web
+    name: vaami-voice
+    runtime: docker
+    dockerfilePath: ./pipecat/Dockerfile
+    dockerContext: ./pipecat
+    plan: starter
+    healthCheckPath: /status
+    envVars:
+      - key: DEEPGRAM_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: ELEVENLABS_API_KEY
+        sync: false
+      - key: ELEVENLABS_VOICE_ID
+        sync: false
+      - key: PIPECAT_ICE_SERVERS
+        sync: false
+
+  - type: web
+    name: vaami-web
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: "/*"
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        value: https://worker.vaami-aii.workers.dev
+      - key: VITE_PIPECAT_URL
+        fromService:
+          type: web
+          name: vaami-voice
+          envVarKey: RENDER_EXTERNAL_URL
